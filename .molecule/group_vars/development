@@ -1,0 +1,11 @@
+---
+base_name: example.com
+deploy_user: vagrant
+domains:
+- test.example.com
+- test2.example.com
+- another-example.com
+email: qwertynesia@gmail.com
+env_name: development
+first_install: true
+new_domain: true

@@ -1,0 +1,126 @@
+---
+- name: Add certbot repository
+  apt_repository:
+    repo: ppa:certbot/certbot
+    state: present
+    update_cache: yes
+  become: True
+  when: first_install
+
+- name: install certbot dependencies
+  apt: name={{ item }} state=present
+  with_items:
+    - build-essential
+    - libssl-dev
+    - libffi-dev
+    - python-dev
+    - git
+    - python-pip
+    - python-virtualenv
+    - dialog
+    - libaugeas0
+    - ca-certificates
+  become: True
+  when: first_install
+
+- name: install Certbot
+  apt: name=python-certbot-nginx state=present
+  become: True
+  when: first_install
+
+- name: install nginx
+  apt:
+    name: nginx
+    state: present
+  when: first_install
+
+- name: Remove symlink default nginx vhost
+  file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  when: first_install
+
+- name: Backup origin default nginx vhost
+  stat: path=/etc/nginx/sites-available/default
+  register: default_vhost
+  when: first_install
+
+- name: Move /etc/nginx/sites-available/default to /etc/nginx/sites-available/default.backup
+  command: mv /etc/nginx/sites-available/default /etc/nginx/sites-available/default.backup
+  when: default_vhost.stat is defined  and default_vhost.stat.exists and first_install
+
+- name: Create new default nginx vhost
+  template:
+    src: templates/default.j2
+    dest: /etc/nginx/sites-available/{{ base_name }}
+  when: first_install
+
+- name: Make new symlink for new default vhost
+  file:
+    src: /etc/nginx/sites-available/{{ base_name }}
+    dest: /etc/nginx/sites-enabled/{{ base_name }}
+    state: link
+  when: first_install
+  become: yes
+
+- name: Create generated file before creating SSL
+  template:
+    src: templates/generated_domains.j2
+    dest: /tmp/generated_domains
+    owner: root
+
+- name: Create .well-known folder
+  file:
+    path: /var/www/html/.well-known/acme-challenge
+    state: directory
+    mode: 755
+  when: first_install
+
+# - name: Install SSL for main domain
+#   shell: certbot --agree-tos --renew-by-default --preferred-challenges http-01 --http-01-port 9999 --server https://acme-v01.api.letsencrypt.org/directory certonly --webroot -w /var/www/html -d {{ base_name }} -d www.{{ base_name }}
+#   become: yes
+#   when: first_install
+
+- name: Create new default nginx vhost with SSL
+  template:
+    src: templates/default-ssl.j2
+    dest: /etc/nginx/sites-available/{{ base_name }}
+  when: first_install
+  become: yes
+
+- name: Make new symlink for new default vhost with SSL
+  file:
+    src: /etc/nginx/sites-available/{{ base_name }}
+    dest: /etc/nginx/sites-enabled/{{ base_name }}
+    state: link
+  become: yes
+  when: first_install
+
+# - name: restart nginx
+#   service: name=nginx state=restarted
+#   become: yes
+
+- name: Create vhost fo every domains
+  template:
+    src: templates/vhost.j2
+    dest: /etc/nginx/sites-available/{{ item }}
+  become: yes
+  with_items:
+    - "{{ domains }}"
+
+- name: Make new symlink for new default vhost
+  file:
+    src: /etc/nginx/sites-available/{{ item }}
+    dest: /etc/nginx/sites-enabled/{{ item }}
+    state: link
+  become: yes
+  with_items:
+    - "{{ domains }}"
+
+# - name: Make new symlink for new default vhost
+#   shell: sed -i "1 i\certbot --agree-tos --renew-by-default --preferred-challenges http-01 --http-01-port 9999 --server https://acme-v01.api.letsencrypt.org/directory certonly --webroot -w /var/www/html" >> /home/ubuntu/generated_domains
+#   become: yes
+
+# - name: Generate letsencrypt for each domain
+#   shell: xargs -a /tmp/generated_domains certbot  -m {{ email }}--agree-tos --renew-by-default --preferred-challenges http-01 --http-01-port 9999 --server https://acme-v01.api.letsencrypt.org/directory certonly --webroot -w /var/www/html
+#   become: yes

@@ -1,0 +1,2 @@
+[server]
+162.243.112.108     ansible_connection=ssh      ansible_user=root

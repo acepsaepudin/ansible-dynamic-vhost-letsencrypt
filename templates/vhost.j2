@@ -1,0 +1,29 @@
+server {
+    listen 80;
+    listen 443 ssl;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/ssl/certs/dhparam.pem;
+    root /var/www/html;
+    # Add index.php to the list if you are using PHP
+    index index.php index.html index.htm index.nginx-debian.html;
+
+    server_name {{ item }};
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    location ~ /\.ht {
+        deny all;
+    }
+    {% set x = item.split('.') -%}
+    {% if x[2] is defined and x[1]+'.'+x[2] != base_name %}
+    ssl_certificate /etc/letsencrypt/live/"{{ base_name }}"/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/"{{ base_name }}"/privkey.pem;
+    {% endif %}
+
+    if ($scheme != "https") {
+        return 301 https://$host$request_uri;
+    }
+
+}

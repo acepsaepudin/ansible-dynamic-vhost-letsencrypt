@@ -1,0 +1,28 @@
+---
+converged: true
+created: true
+default_platform: null
+default_provider: null
+driver: vagrant
+driver_config:
+  current_platform: xenial64
+  current_provider: virtualbox
+  instances:
+  - ansible_groups:
+    - development
+    name: vhostssl
+    vm_name: vhostssl
+  platforms:
+  - box: ubuntu/xenial64
+    name: xenial64
+  providers:
+  - name: virtualbox
+    options:
+      cpus: 2
+      memory: 512
+    type: virtualbox
+hosts:
+  vhostssl:
+    groups:
+    - development
+multiple_platforms: null
